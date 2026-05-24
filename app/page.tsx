@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast, Toaster } from 'sonner';
 import { Loader2, FileText, Calendar, Clock, MapPin, Users, BookOpen, Building, User, Edit, ArrowLeft, Download, Key } from 'lucide-react';
-import { generateNssReport, downloadNssDocx } from '@/app/actions/reports';
+import { generateNssReport } from '@/app/actions/reports';
+import { fillNssReportTemplateBrowser, buildReportFilename } from '@/lib/reports/docx-client';
 import type { ParsedNssMarkdown } from '@/lib/reports/docx';
 
 type Step1Values = {
@@ -16,11 +17,7 @@ type Step1Values = {
   apiKey: string;
 };
 
-function triggerDownload(filename: string, base64: string) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const blob = new Blob([bytes], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
+function triggerDownload(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -83,11 +80,18 @@ export default function Home() {
           URL.revokeObjectURL(url);
           let w = img.width;
           let h = img.height;
-          const MAX_WIDTH = 250;
-          if (w > MAX_WIDTH) {
-            h = Math.round(h * (MAX_WIDTH / w));
-            w = MAX_WIDTH;
+          
+          const MAX_WIDTH = 350;
+          
+          // Calculate the scaling ratio to fit within MAX_WIDTH
+          // This guarantees the aspect ratio remains exactly the same.
+          const ratio = MAX_WIDTH / w;
+          
+          if (ratio < 1) {
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
           }
+          
           resolve({ width: w, height: h });
         };
         img.onerror = () => {
@@ -107,19 +111,29 @@ export default function Home() {
     if (!parsedData) return;
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('parsedData', JSON.stringify(parsedData));
-      formData.append('fallbackDateString', new Date().toISOString());
-
-      const dimensions = photos.map(p => ({ width: p.width, height: p.height }));
-      formData.append('photoDimensions', JSON.stringify(dimensions));
-
-      photos.forEach((p, idx) => {
-        formData.append('photos', p.file);
+      const blob = await fillNssReportTemplateBrowser({
+        activityTitle: parsedData.activityTitle,
+        date: parsedData.eventDetails['Date'] || new Date().toISOString(),
+        venue: parsedData.eventDetails['Venue'],
+        time: parsedData.eventDetails['Time'],
+        volunteers: parsedData.eventDetails['No. of Volunteers'],
+        activityCoordinator: parsedData.eventDetails['Activity Coordinator'] || 'Himanshu Choyal',
+        scheme: parsedData.eventDetails['Name of Scheme'] || 'NSS',
+        organizingUnit: parsedData.eventDetails['Organizing Unit'] || 'NSS-VIT',
+        objectives: parsedData.objectives,
+        description: parsedData.description,
+        impact: parsedData.impact,
+        conclusion: parsedData.conclusion,
+        photos: photos.length > 0 ? photos : undefined,
       });
 
-      const { filename, fileBase64 } = await downloadNssDocx(formData);
-      triggerDownload(filename, fileBase64);
+      const filename = buildReportFilename(
+        parsedData.activityTitle,
+        parsedData.eventDetails['Date'],
+        new Date(),
+      );
+
+      triggerDownload(filename, blob);
       toast.success('Report downloaded successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to download DOCX');
