@@ -192,7 +192,7 @@ export default function Home() {
                     rows={8}
                     {...form1.register('rawMessage')}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border font-mono"
-                    placeholder={`📌 Event: Seedball Making\n📌 Event Type : AB1\n📅 Date : 22 May(tomorrow)\n⏰Hours alloted : 3 \n🚉 Reporting Station: andheri\n⏰ Reporting time : 7:30\n📍Cap: 30 volunteers\n\nAttendance:\n1. Shreyas Patil\n2. Vedant Phase`}
+                    placeholder={`📌 Event: Seedball Making\n📌 Event Type : AB1\n📅 Date : 22 May(tomorrow)\n⏰Hours alloted : 3 \n🚉 Reporting Station: andheri\n⏰ Reporting time : 7:30\n📍Cap: 30 volunteers\n\nAttendance:\n1. Himanshu Choyal\n`}
                   />
                 </div>
               </div>
