@@ -11,7 +11,6 @@ import type { ParsedNssMarkdown } from '@/lib/reports/docx';
 type Step1Values = {
   rawMessage: string;
   majorObjective: string;
-  scheme: string;
   organizingUnit: string;
   activityCoordinator: string;
   apiKey: string;
@@ -37,7 +36,6 @@ export default function Home() {
     defaultValues: {
       rawMessage: '',
       majorObjective: '',
-      scheme: 'NSS',
       organizingUnit: 'NSS-VIT',
       activityCoordinator: 'Prof. Rakshak Sood',
       apiKey: '',
@@ -224,14 +222,6 @@ export default function Home() {
                 </h2>
                 <div className="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Scheme</label>
-                    <input
-                      type="text"
-                      {...form1.register('scheme')}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700">Organizing Unit</label>
                     <input
                       type="text"
@@ -330,6 +320,18 @@ export default function Home() {
                   <input
                     value={parsedData.activityTitle || ''}
                     onChange={(e) => setParsedData({ ...parsedData, activityTitle: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name of Scheme</label>
+                  <input
+                    value={
+                      parsedData.eventDetails['Name of Scheme'] ||
+                      parsedData.eventDetails['Event Type'] ||
+                      ''
+                    }
+                    onChange={(e) => handleUpdateDetail('Name of Scheme', e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border"
                   />
                 </div>

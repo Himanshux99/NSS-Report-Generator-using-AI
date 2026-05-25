@@ -94,6 +94,28 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes
 }
 
+async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  if ('createImageBitmap' in window) {
+    const bmp = await createImageBitmap(file)
+    const dims = { width: bmp.width, height: bmp.height }
+    bmp.close()
+    return dims
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      URL.revokeObjectURL(url)
+    }
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url)
+      reject(e)
+    }
+    img.src = url
+  })
+}
+
 // ─── Main export ─────────────────────────────────────────────────────────────
 
 /**
@@ -117,32 +139,8 @@ export async function fillNssReportTemplateBrowser(
   if (input.photos && input.photos.length > 0) {
     for (const p of input.photos) {
       const base64 = await fileToBase64(p.file)
-      photoList.push({ base64, width: p.width, height: p.height })
-    }
-  }
-
-  // 3. Inject per-image placeholder tags into the document XML
-  //    (mirrors the server-side XML manipulation in docx.ts exactly)
-  if (photoList.length > 0) {
-    let docXml = zip.file('word/document.xml')?.asText()
-    if (docXml) {
-      const imgTags = photoList
-        .map(
-          (_, i) =>
-            `</w:t></w:r><w:r><w:t xml:space="preserve">{%img${i}}</w:t></w:r><w:r><w:t xml:space="preserve"> `,
-        )
-        .join('')
-
-      if (docXml.includes('{insert_photos}')) {
-        docXml = docXml.replace('{insert_photos}', imgTags)
-        zip.file('word/document.xml', docXml)
-      } else if (docXml.includes('#photos') && docXml.includes('%image')) {
-        docXml = docXml
-          .replace(/\{#photos\}/g, '')
-          .replace(/\{\/photos\}/g, '')
-          .replace(/\{%image\}/g, imgTags)
-        zip.file('word/document.xml', docXml)
-      }
+      const dims = await getImageDimensions(p.file)
+      photoList.push({ base64, width: dims.width, height: dims.height })
     }
   }
 
@@ -150,15 +148,24 @@ export async function fillNssReportTemplateBrowser(
   const sizeMap = new Map<string, { width: number; height: number }>()
   photoList.forEach((p) => sizeMap.set(p.base64, { width: p.width, height: p.height }))
 
-  // 5. Configure the image module (Uint8Array instead of Buffer — browser-safe)
+  const MAX_HEIGHT = 200
+
   const imageModule = new ImageModule({
     centered: false,
-    getImage(tagValue: string) {
-      return base64ToUint8Array(tagValue)
+    getImage: (tagValue: any) => {
+      const base64 =
+        typeof tagValue === 'string' ? tagValue : (tagValue?.image || '')
+      return base64ToUint8Array(base64)
     },
-    getSize(_img: unknown, tagValue: string, _tagName: string): [number, number] {
-      const size = sizeMap.get(tagValue)
-      return size ? [size.width, size.height] : [250, 200]
+    getSize: (_img: any, tagValue: any) => {
+      const base64 =
+        typeof tagValue === 'string' ? tagValue : (tagValue?.image || '')
+      const dims = base64 ? sizeMap.get(base64) : undefined
+      const width = dims?.width ?? 250
+      const height = dims?.height ?? 200
+
+      const scale = height > MAX_HEIGHT ? MAX_HEIGHT / height : 1
+      return [Math.round(width * scale), Math.round(height * scale)]
     },
   })
 
@@ -170,9 +177,9 @@ export async function fillNssReportTemplateBrowser(
     modules: [imageModule],
   })
 
-  const objectivesText = input.objectives.map((o) => `• ${o}`).join('\n')
+  const objectivesText = (input.objectives ?? []).map((o) => `• ${o}`).join('\n')
 
-  const renderData: Record<string, unknown> = {
+  const renderData: any = {
     activityTitle: input.activityTitle,
     date: input.date,
     venue: input.venue,
@@ -185,13 +192,13 @@ export async function fillNssReportTemplateBrowser(
     description: input.description,
     impact: input.impact,
     conclusion: input.conclusion,
-    photos: photoList.map((p) => ({ image: p.base64 })),
+    photos: photoList.map((p) => ({ image: p.base64, width: p.width, height: p.height })),
   }
 
-  // Add individual per-image keys ({%img0}, {%img1}, …)
-  photoList.forEach((p, i) => {
-    renderData[`img${i}`] = p.base64
-  })
+  // ❌ Remove per-image keys (img0, img1, …)
+  // photoList.forEach((p, i) => {
+  //   renderData[`img${i}`] = p.base64
+  // })
 
   doc.render(renderData)
 

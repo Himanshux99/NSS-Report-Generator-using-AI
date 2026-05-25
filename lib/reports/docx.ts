@@ -130,36 +130,7 @@ export async function fillNssReportTemplate(input: FillTemplateInput): Promise<B
 
   const templateBuffer = readFileSync(TEMPLATE_PATH)
   const zip = new PizZip(templateBuffer)
-
-  // Only do XML manipulation when we actually have photos.
-  // When photos=[], let docxtemplater handle {#photos}...{/photos} natively with an empty array.
-  if (input.photos && input.photos.length > 0) {
-    let docXml = zip.file('word/document.xml')?.asText()
-    if (docXml) {
-      // Build isolated per-image run tags: each {%imgN} in its own <w:t> so Word doesn't swallow them
-      const imgTags = input.photos.map((_, i) =>
-        `</w:t></w:r><w:r><w:t xml:space="preserve">{%img${i}}</w:t></w:r><w:r><w:t xml:space="preserve"> `
-      ).join('');
-
-      if (docXml.includes('{insert_photos}')) {
-        // Simple placeholder format
-        docXml = docXml.replace('{insert_photos}', imgTags);
-        zip.file('word/document.xml', docXml);
-      } else if (docXml.includes('#photos') && docXml.includes('%image')) {
-        // The loop-style format: strip the loop container tags (which may be split across runs)
-        // and replace %image with our per-image isolated tags
-        docXml = docXml
-          .replace(/\{#photos\}/g, '')
-          .replace(/\{\/photos\}/g, '')
-          .replace(/\{%image\}/g, imgTags);
-        zip.file('word/document.xml', docXml);
-      } else {
-        // No recognized photo placeholder found in template
-      }
-    }
-  } else {
-  }
-
+  
   // Build a lookup map to safely find dimensions for base64 values
   const sizeMap = new Map<string, {width: number, height: number}>();
   input.photos?.forEach(p => {
@@ -168,14 +139,18 @@ export async function fillNssReportTemplate(input: FillTemplateInput): Promise<B
 
   const imageModule = new ImageModule({
     centered: false,
-    getImage: function(tagValue: string) {
-      return Buffer.from(tagValue, 'base64')
+    getImage: (tagValue: any) => {
+      const base64 = typeof tagValue === 'string' ? tagValue : tagValue?.image
+      return Buffer.from(base64, 'base64')
     },
-    getSize: function(img: any, tagValue: string, _tagName: string) {
-      const size = sizeMap.get(tagValue);
-      const result: [number, number] = size ? [size.width, size.height] : [250, 200];
-      return result;
-    }
+    getSize: (_img: any, tagValue: any) => {
+      if (typeof tagValue === 'object' && tagValue?.width && tagValue?.height) {
+        return [tagValue.width, tagValue.height]
+      }
+      const base64 = typeof tagValue === 'string' ? tagValue : tagValue?.image
+      const size = base64 ? sizeMap.get(base64) : undefined
+      return size ? [size.width, size.height] : [250, 200]
+    },
   })
 
   const doc = new Docxtemplater(zip, {
@@ -200,7 +175,7 @@ export async function fillNssReportTemplate(input: FillTemplateInput): Promise<B
     description: input.description,
     impact: input.impact,
     conclusion: input.conclusion,
-    photos: input.photos?.map(p => ({ image: p.base64 })) || [],
+    photos: input.photos?.map(p => ({ image: p.base64, width: p.width, height: p.height })) || [],
   };
 
   input.photos?.forEach((p, i) => {

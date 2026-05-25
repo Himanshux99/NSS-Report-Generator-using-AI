@@ -7,6 +7,12 @@ import { parseNssMarkdown, buildReportFilename, fillNssReportTemplate } from '@/
 const DEFAULT_ACTIVITY_COORDINATOR = 'Prof. Rakshak Sood'
 const DEFAULT_ORGANIZING_UNIT = 'NSS-VIT'
 
+function extractEventType(rawMessage: string): string | undefined {
+  const match = rawMessage.match(/Event\s*Type\s*[:\-]\s*(.+)/i)
+  if (!match) return undefined
+  return match[1].split('\n')[0].trim() || undefined
+}
+
 const inputSchema = z.object({
   rawMessage: z.string().min(1, 'Raw message is required'),
   majorObjective: z.string().trim()
@@ -24,7 +30,8 @@ const inputSchema = z.object({
 export async function generateNssReport(raw: unknown) {
   const input = inputSchema.parse(raw)
 
-  const scheme = input.scheme || 'NSS'
+  const extractedEventType = extractEventType(input.rawMessage)
+  const scheme = input.scheme || extractedEventType || 'NSS'
   const organizingUnit = input.organizingUnit || DEFAULT_ORGANIZING_UNIT
   const activityCoordinator = input.activityCoordinator || DEFAULT_ACTIVITY_COORDINATOR
 
@@ -53,14 +60,24 @@ export async function downloadNssDocx(formData: FormData) {
 
   const photoFiles = formData.getAll('photos') as File[]
 
+  const MAX_HEIGHT = 150
+
   const photos = await Promise.all(
     photoFiles.map(async (file, index) => {
       const arrayBuffer = await file.arrayBuffer()
       const b64 = Buffer.from(arrayBuffer).toString('base64')
+
+      const providedWidth = dimensions[index]?.width ?? 250
+      const providedHeight = dimensions[index]?.height ?? 200
+
+      const scale = providedHeight > MAX_HEIGHT ? (MAX_HEIGHT / providedHeight) : 1
+      const width = Math.round(providedWidth * scale)
+      const height = Math.round(providedHeight * scale)
+
       return {
         base64: b64,
-        width: dimensions[index]?.width || 250,
-        height: dimensions[index]?.height || 200
+        width,
+        height
       }
     })
   )
@@ -72,7 +89,10 @@ export async function downloadNssDocx(formData: FormData) {
     time: parsedData.eventDetails['Time'],
     volunteers: parsedData.eventDetails['No. of Volunteers'],
     activityCoordinator: parsedData.eventDetails['Activity Coordinator'] || DEFAULT_ACTIVITY_COORDINATOR,
-    scheme: parsedData.eventDetails['Name of Scheme'] || 'NSS',
+    scheme:
+      parsedData.eventDetails['Name of Scheme'] ||
+      parsedData.eventDetails['Event Type'] ||
+      'NSS',
     organizingUnit: parsedData.eventDetails['Organizing Unit'] || DEFAULT_ORGANIZING_UNIT,
     objectives: parsedData.objectives,
     description: parsedData.description,

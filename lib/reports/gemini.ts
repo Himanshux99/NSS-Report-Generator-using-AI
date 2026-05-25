@@ -96,7 +96,6 @@ export async function generateNssMarkdown(input: NssReportInput): Promise<string
     ``,
     `Additional Provided Fields:`,
     `Major Objective: ${input.majorObjective}`,
-    `Name of Scheme: ${input.scheme}`,
     `Organizing Unit: ${input.organizingUnit}`,
     `Activity Coordinator: ${input.activityCoordinator}`,
     ``,
@@ -106,7 +105,8 @@ export async function generateNssMarkdown(input: NssReportInput): Promise<string
     `   - End Time = Start Time + Hours alloted.`,
     `   Format the time like "9:00 am to 12:00 pm".`,
     `2. Accurately count the Male and Female volunteers from the list of names. Ensure the total matches the list provided, formatted as "X (Male:Y, Female:Z)".`,
-    `3. Format the venue/location strictly as "(Area, City)", for example "(Andheri West, Mumbai)" or "(Wadala, Mumbai)". If the message says "Reporting Station: andheri", format it as "(Andheri, Mumbai)". Avoid vague descriptions.`
+    `3. Format the venue/location strictly as "(Area, City)", for example "(Andheri West, Mumbai)" or "(Wadala, Mumbai)". If the message says "Reporting Station: andheri", format it as "(Andheri, Mumbai)". Avoid vague descriptions.`,
+    `4. find the event type from the message. it will be name of the scheme or explicitly mentioned as event type. if not found, default to "NSS". if the message contains event type ab1, ab2 ,college, university then the name of the scheme will be "Area Based 1","Area Based 2","College","University" respectively. `,
   ].join('\n')
 
   const modelsToTry = [MODEL_NAME, ...FALLBACK_MODELS]
