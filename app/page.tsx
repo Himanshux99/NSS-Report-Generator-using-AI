@@ -188,12 +188,21 @@ export default function Home() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Paste Message Here *</label>
                   <p className="text-xs text-gray-500 mb-2">Include event details, reporting time, hours alloted, and the list of attendees.</p>
                   <textarea
-                    required
                     rows={8}
-                    {...form1.register('rawMessage')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border font-mono"
+                    {...form1.register('rawMessage', {
+                      validate: (value) => value.trim().length > 0 || 'Raw message is required',
+                    })}
+                    aria-invalid={!!form1.formState.errors.rawMessage}
+                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm p-3 border font-mono ${
+                      form1.formState.errors.rawMessage
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                        : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                    }`}
                     placeholder={`📌 Event: Seedball Making\n📌 Event Type : AB1\n📅 Date : 22 May(tomorrow)\n⏰Hours alloted : 3 \n🚉 Reporting Station: andheri\n⏰ Reporting time : 7:30\n📍Cap: 30 volunteers\n\nAttendance:\n1. Himanshu Choyal\n`}
                   />
+                  {form1.formState.errors.rawMessage && (
+                    <p className="mt-1 text-xs text-red-600">{form1.formState.errors.rawMessage.message}</p>
+                  )}
                 </div>
               </div>
 
@@ -206,12 +215,26 @@ export default function Home() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Objective *</label>
                   <p className="text-xs text-gray-500 mb-2">Provide a descriptive sentence about the event's purpose.</p>
                   <textarea
-                    required
                     rows={2}
-                    {...form1.register('majorObjective')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 border"
+                    {...form1.register('majorObjective', {
+                      validate: (value) => {
+                        const trimmed = value.trim();
+                        if (trimmed.length < 10) return 'Major objective must be at least 10 characters';
+                        if (trimmed.split(/\s+/).length > 500) return 'Major objective must be at most 500 words';
+                        return true;
+                      },
+                    })}
+                    aria-invalid={!!form1.formState.errors.majorObjective}
+                    className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm p-3 border ${
+                      form1.formState.errors.majorObjective
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                        : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'
+                    }`}
                     placeholder="e.g. To teach environmental conservation to underprivileged school students and plant 100 trees in the local area."
                   />
+                  {form1.formState.errors.majorObjective && (
+                    <p className="mt-1 text-xs text-red-600">{form1.formState.errors.majorObjective.message}</p>
+                  )}
                 </div>
               </div>
 

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const MODEL_NAME = 'gemini-3.8-flash'
+const MODEL_NAME = 'gemini-3.5-flash-lite'
 const PROMPT_PATH = join(process.cwd(), 'lib', 'reports', 'prompts', 'nss-report.txt')
 
 let cachedPrompt: string | null = null
@@ -37,7 +37,7 @@ export interface NssReportInput {
 }
 
 /** Primary model — falls back if it's overloaded. */
-const FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash']
+const FALLBACK_MODELS = ['gemini-3.6-flash', 'gemini-3.1-flash-lite']
 
 function isTransientGeminiError(err: unknown): boolean {
   const e = err as { status?: number; message?: string }
@@ -50,7 +50,12 @@ function isApiKeyError(err: unknown): boolean {
   const e = err as { status?: number; message?: string }
   const status = e?.status
   const msg = (e?.message ?? '').toLowerCase()
-  
+
+  // Billing/quota/project problems are not key problems; surface them as-is.
+  if (msg.includes('free tier') || msg.includes('billing') || msg.includes('project-unavailable')) {
+    return false
+  }
+
   if (status === 400 || status === 403 || status === 401) {
     if (
       msg.includes('key') ||
