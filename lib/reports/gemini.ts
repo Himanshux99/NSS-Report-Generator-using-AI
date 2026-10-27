@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const MODEL_NAME = 'gemini-2.5-flash'
+const MODEL_NAME = 'gemini-3.8-flash'
 const PROMPT_PATH = join(process.cwd(), 'lib', 'reports', 'prompts', 'nss-report.txt')
 
 let cachedPrompt: string | null = null
